@@ -1,4 +1,4 @@
-use std::{error::Error, io, result::Result as StdResult, cmp::min};
+use std::{cmp::min, error::Error, io, result::Result as StdResult};
 
 type Result<T> = StdResult<T, Box<dyn Error>>;
 
@@ -7,7 +7,10 @@ fn main() -> Result<()> {
     let _num_tests: usize = lines.next().ok_or("no input")??.parse()?;
 
     while let Some(line) = lines.next() {
-        let bch: Vec<_> = line?.split_whitespace().map(str::parse).collect::<StdResult<_, _, >>()?;
+        let bch: Vec<_> = line?
+            .split_whitespace()
+            .map(str::parse)
+            .collect::<StdResult<_, _>>()?;
         let &[b, c, h] = bch.as_slice() else {
             Err("expected 3 nums: b, c, h")?
         };

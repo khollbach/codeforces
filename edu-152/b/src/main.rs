@@ -1,4 +1,4 @@
-use std::{collections::BinaryHeap, error::Error, io, result::Result as StdResult, cmp::{Ordering, Reverse}};
+use std::{cmp::Reverse, error::Error, io, result::Result as StdResult};
 
 type Result<T> = StdResult<T, Box<dyn Error>>;
 
@@ -39,45 +39,29 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-#[derive(PartialEq, Eq)]
-struct Monster {
-    curr_health: u32,
-    index: usize,
-}
-
-impl Ord for Monster {
-    fn cmp(&self, other: &Self) -> Ordering {
-        let k1 = (self.curr_health, Reverse(self.index));
-        let k2 = (other.curr_health, Reverse(other.index));
-        k1.cmp(&k2)
-    }
-}
-
-impl PartialOrd for Monster {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 fn soln(monster_healths: &[u32], ability_damage: u32) -> Vec<usize> {
-    let mut q: BinaryHeap<_> = monster_healths
+    assert_ne!(ability_damage, 0);
+
+    // Hit monsters until they're all one hit from death.
+    let mut low_healths: Vec<(usize, u32)> = monster_healths
         .iter()
+        .map(|&health| {
+            assert_ne!(health, 0);
+
+            let health_remaining = health % ability_damage;
+            if health_remaining == 0 {
+                // Don't kill it; leave it at a round-number of health.
+                ability_damage
+            } else {
+                health_remaining
+            }
+        })
         .enumerate()
-        .map(|(index, &curr_health)| Monster { index, curr_health })
         .collect();
 
-    let mut ans = Vec::with_capacity(q.len());
+    // Kill them all, most-healthy-first. Break ties by lowest-index-first.
+    low_healths.sort_unstable_by_key(|&(idx, health)| (Reverse(health), idx));
 
-    while let Some(mut m) = q.pop() {
-        // Attack the highest health monster.
-        m.curr_health = m.curr_health.saturating_sub(ability_damage);
-
-        if m.curr_health == 0 {
-            ans.push(m.index);
-        } else {
-            q.push(m)
-        }
-    }
-
-    ans
+    // What order do they die in?
+    low_healths.into_iter().map(|(idx, _)| idx).collect()
 }
