@@ -72,6 +72,16 @@ impl Bit {
     }
 }
 
+/// We can partition s into blocks, where a block is a maximal substring of all
+/// 0s or all 1s.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct BlockBounds {
+    /// Start index of this block.
+    start: usize,
+    /// End index, exclusive.
+    end: usize,
+}
+
 fn soln(mut s: Vec<Bit>, mut ranges: Vec<(usize, usize)>) -> usize {
     // Ensure `s` starts with 0 and ends with 1.
     s.insert(0, Bit::Zero);
@@ -83,12 +93,43 @@ fn soln(mut s: Vec<Bit>, mut ranges: Vec<(usize, usize)>) -> usize {
         *j += 1;
     }
 
-    // The blocks of s are the maximal substrings of all 0s or all 1s.
-    //
-    // `block_starts[i]` is the starting index of i's block.
-    // `block_ends[i]` is the ending index, exclusive.
-    let mut block_starts = vec![usize::MAX; s.len()];
-    let mut block_ends = vec![usize::MAX; s.len()];
+    let blocks = blocks(&s);
+
+    // "Expand" each range to include 0s to its left and 1s to its right.
+    // Then count the number of unique ranges.
+    ranges
+        .into_iter()
+        .map(|(i, j)| {
+            let start = if s[i - 1] == Bit::Zero {
+                blocks[i - 1].start
+            } else {
+                i
+            };
+
+            let end = if s[j] == Bit::One { blocks[j].end } else { j };
+
+            // Edge-case: sorting this range would *do nothing*.
+            let start_block = blocks[start];
+            let end_block = blocks[end - 1];
+            let same_block = start_block == end_block;
+            let consecutive = start_block.end == end_block.start;
+            if same_block || consecutive && s[start] == Bit::Zero && s[end - 1] == Bit::One {
+                // Treat all such ranges as Equal to one another.
+                return None;
+            }
+
+            Some((start, end))
+        })
+        .collect::<HashSet<_>>()
+        .len()
+}
+
+fn blocks(s: &[Bit]) -> Vec<BlockBounds> {
+    const NONE: BlockBounds = BlockBounds {
+        start: usize::MAX,
+        end: usize::MAX,
+    };
+    let mut blocks = vec![NONE; s.len()];
 
     let mut start = 0;
     loop {
@@ -98,8 +139,7 @@ fn soln(mut s: Vec<Bit>, mut ranges: Vec<(usize, usize)>) -> usize {
             .unwrap_or(s.len());
 
         for i in start..end {
-            block_starts[i] = start;
-            block_ends[i] = end;
+            blocks[i] = BlockBounds { start, end };
         }
 
         if end == s.len() {
@@ -109,27 +149,6 @@ fn soln(mut s: Vec<Bit>, mut ranges: Vec<(usize, usize)>) -> usize {
         }
     }
 
-    debug_assert!(block_starts.iter().all(|&idx| idx != usize::MAX));
-    debug_assert!(block_ends.iter().all(|&idx| idx != usize::MAX));
-
-    // "Expand" each range to include 0s to its left and 1s to its right.
-    // Then count the number of unique ranges.
-    ranges
-        .into_iter()
-        .map(|(i, j)| {
-            let start = if s[i - 1] == Bit::Zero {
-                block_starts[i - 1]
-            } else {
-                i
-            };
-
-            let end = if s[j] == Bit::One { block_ends[j] } else { j };
-
-            // !!! Edge-case: need to detect if sorting this range *does nothing*.
-            // todo
-
-            (start, end)
-        })
-        .collect::<HashSet<_>>()
-        .len()
+    debug_assert!(blocks.iter().all(|&block| block != NONE));
+    blocks
 }
