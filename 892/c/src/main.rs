@@ -1,4 +1,4 @@
-use std::{error::Error, io, result::Result as StdResult, iter::zip};
+use std::{error::Error, io, iter::zip, result::Result as StdResult};
 
 type Result<T> = StdResult<T, Box<dyn Error>>;
 
@@ -15,9 +15,79 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn soln(n: u64) -> u64 {
-    std::cmp::max(_attempt_2(n), _attempt_3(n))
+fn _main() {
+    for i in 0..=250 {
+        dbg!(soln(i));
+    }
 }
+
+fn soln(n: u64) -> u64 {
+    let guess = generalized(n);
+    // let actual = brute_force(n);
+    // assert_eq!(guess, actual);
+    guess
+}
+
+// Omega(n * n!)
+fn brute_force(n: u64) -> u64 {
+    let nums: Vec<_> = (1..=n).collect();
+    let (score, p) = perms(&nums)
+        .into_iter()
+        .map(|p| (score(&p), p))
+        .max_by_key(|&(score, _)| score)
+        .unwrap();
+
+    // let areas: Vec<_> = zip(1.., &p).map(|(i, x)| i * x).collect();
+    // dbg!(&p, areas, score);
+    score
+}
+
+// does this work? If so, I have *no* idea why...
+fn generalized(n: u64) -> u64 {
+    let mut nums: Vec<_> = (1..=n).collect();
+    (0..=n as usize)
+        .map(|i| {
+            nums[i..].reverse();
+            let score = score(&nums);
+            nums[i..].reverse();
+            score
+        })
+        .max()
+        .unwrap_or(0)
+}
+
+fn _naive(n: u64) -> u64 {
+    if n <= 1 {
+        return 0;
+    }
+
+    let mut perm = Vec::with_capacity(n as usize);
+    let mut areas = Vec::with_capacity(n as usize);
+    let mut sum = 0;
+
+    // most are just squares
+    for i in 1..=n - 2 {
+        let area = i.pow(2);
+        sum += area;
+
+        perm.push(i);
+        areas.push(area);
+    }
+
+    // make the two largest rectangles the same; drop one
+    let area = n * (n - 1);
+    sum += area;
+
+    perm.push(n);
+    perm.push(n - 1);
+    areas.push(area);
+    areas.push(area);
+
+    // dbg!(perm, areas, sum);
+    sum
+}
+
+// ---
 
 fn _attempt_3(n: u64) -> u64 {
     // idea: brute force the last ~10 elems in all permutations
@@ -50,6 +120,7 @@ fn score(nums: &[u64]) -> u64 {
     score
 }
 
+// O((n!)^2) maybe?
 fn perms(nums: &[u64]) -> Vec<Vec<u64>> {
     if nums.is_empty() {
         return vec![vec![]];
